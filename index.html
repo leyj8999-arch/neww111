@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#16243a" />
+  <title>체력단련실 예약</title>
+  <style>
+    :root {
+      --navy: #16243a;
+      --navy-2: #223650;
+      --teal: #19a891;
+      --teal-dark: #128773;
+      --ink: #172033;
+      --muted: #687487;
+      --line: #e6eaf0;
+      --bg: #f5f7fa;
+      --white: #ffffff;
+      --green-bg: #eaf8f4;
+      --green: #14856f;
+      --red: #c24141;
+      --shadow: 0 18px 50px rgba(24, 39, 60, .08);
+      font-family: Inter, Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .topbar { background: var(--navy); color: white; }
+    .nav { max-width: 1180px; margin: auto; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .brand { display: flex; align-items: center; gap: 12px; color: white; text-decoration: none; min-width: 0; }
+    .brand-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 13px; background: rgba(25,168,145,.17); color: #62e0ca; }
+    .brand-name { font-weight: 800; font-size: 17px; letter-spacing: -.4px; }
+    .brand-sub { display: block; margin-top: 2px; font-size: 11px; font-weight: 500; color: #bac5d4; letter-spacing: .8px; }
+    .nav-right { display: flex; align-items: center; gap: 18px; }
+    .nav-link { border: 0; background: transparent; color: #d7dfeb; font-size: 14px; font-weight: 650; padding: 10px 4px; }
+    .nav-link:hover { color: white; }
+    .nav-cta { border: 0; border-radius: 11px; background: var(--teal); color: white; font-weight: 750; padding: 11px 17px; box-shadow: 0 5px 15px rgba(25,168,145,.2); }
+    .nav-cta:hover, .primary:hover { background: var(--teal-dark); }
+    main { max-width: 1180px; margin: 0 auto; padding: 36px 24px 52px; }
+    .welcome { position: relative; overflow: hidden; padding: 34px 36px; border-radius: 23px; color: white; background: linear-gradient(115deg, #1b2a42, #243b54 74%, #245568); box-shadow: var(--shadow); }
+    .welcome:after { content: ""; position: absolute; right: -64px; top: -120px; width: 360px; height: 360px; border: 1px solid rgba(255,255,255,.09); border-radius: 50%; box-shadow: 0 0 0 42px rgba(255,255,255,.025), 0 0 0 88px rgba(255,255,255,.025); pointer-events: none; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: #8ce8d7; font-size: 12px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; }
+    .eyebrow-dot { width: 7px; height: 7px; border-radius: 50%; background: #55dbc3; }
+    h1 { max-width: 580px; font-size: clamp(28px, 4vw, 43px); line-height: 1.22; letter-spacing: -1.4px; margin: 15px 0 13px; }
+    .welcome p { max-width: 560px; color: #d4dce7; line-height: 1.75; margin: 0; font-size: 14px; }
+    .welcome-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 25px; }
+    .primary { border: 0; border-radius: 12px; background: var(--teal); color: white; font-weight: 800; padding: 14px 19px; display: inline-flex; gap: 10px; align-items: center; justify-content: center; transition: .15s ease; }
+    .secondary-dark { border: 1px solid rgba(255,255,255,.23); border-radius: 12px; background: rgba(255,255,255,.06); color: white; font-weight: 700; padding: 13px 17px; }
+    .secondary-dark:hover { background: rgba(255,255,255,.12); }
+    .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin: 34px 0 17px; }
+    .section-heading h2 { margin: 0; font-size: 22px; letter-spacing: -.7px; }
+    .section-heading p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .today-chip { border: 1px solid var(--line); background: white; border-radius: 999px; padding: 8px 12px; color: #536074; font-size: 12px; font-weight: 750; white-space: nowrap; }
+    .dashboard { display: grid; grid-template-columns: minmax(260px, .82fr) minmax(0, 1.55fr); gap: 19px; align-items: start; }
+    .card { background: var(--white); border: 1px solid #edf0f5; border-radius: 18px; box-shadow: 0 7px 26px rgba(24,39,60,.035); }
+    .reserve-card { padding: 25px; min-height: 270px; }
+    .card-symbol { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: var(--green-bg); color: var(--green); margin-bottom: 19px; }
+    .reserve-card h3 { font-size: 19px; margin: 0 0 8px; letter-spacing: -.5px; }
+    .reserve-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .reserve-card .primary { width: 100%; margin-top: 23px; }
+    .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 21px; padding-top: 19px; border-top: 1px solid var(--line); }
+    .mini-stat strong { display: block; font-size: 21px; letter-spacing: -.6px; }
+    .mini-stat span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .schedule-card { padding: 23px 24px 19px; }
+    .schedule-top { display: flex; justify-content: space-between; gap: 14px; align-items: center; margin-bottom: 7px; }
+    .schedule-top h3 { margin: 0; font-size: 18px; letter-spacing: -.4px; }
+    .date-control { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .date-control input { max-width: 145px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 9px; color: var(--ink); background: white; }
+    .schedule-note { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
+    .time-list { display: grid; gap: 8px; }
+    .window-heading { margin: 13px 0 2px; color: #344158; font-size: 12px; font-weight: 850; }
+    .window-heading:first-child { margin-top: 0; }
+    .time-row { display: grid; grid-template-columns: 100px minmax(0,1fr); gap: 12px; align-items: stretch; min-height: 54px; }
+    .time-label { display: flex; flex-direction: column; justify-content: center; color: #46546a; font-size: 12px; font-weight: 800; }
+    .time-label small { margin-top: 4px; color: #8a95a5; font-weight: 500; font-size: 10px; }
+    .time-slot { padding: 10px 13px; border-radius: 11px; border: 1px solid #e8edf2; background: #fafbfd; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+    .slot-open { color: #8290a2; font-size: 12px; }
+    .slot-open strong { color: #16856f; font-weight: 750; }
+    .booking-pill { display: flex; justify-content: space-between; gap: 12px; align-items: center; width: 100%; min-width: 0; }
+    .booking-person { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .person-avatar { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 auto; border-radius: 10px; background: #e8eff9; color: #3c5b85; font-size: 11px; font-weight: 850; }
+    .person-info { min-width: 0; }
+    .person-info strong { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .person-info small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .reserved-tag { flex: 0 0 auto; border-radius: 6px; background: #fff1e9; color: #ac633d; font-size: 10px; font-weight: 800; padding: 5px 7px; }
+    .empty-state { text-align: center; padding: 25px 12px; color: var(--muted); font-size: 13px; border: 1px dashed #dce3eb; border-radius: 12px; }
+    .footnote { color: #8993a2; font-size: 11px; line-height: 1.6; margin: 14px 2px 0; }
+    footer { max-width: 1180px; margin: auto; padding: 0 24px 28px; color: #8c96a5; display: flex; justify-content: space-between; gap: 16px; font-size: 11px; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 10; padding: 22px; background: rgba(13, 23, 38, .6); display: none; align-items: center; justify-content: center; overflow-y: auto; }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: min(100%, 570px); max-height: min(92vh, 850px); overflow-y: auto; background: white; border-radius: 20px; box-shadow: 0 25px 80px rgba(5,14,28,.3); animation: appear .18s ease-out; }
+    @keyframes appear { from { transform: translateY(8px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
+    .modal-header { display: flex; justify-content: space-between; align-items: start; gap: 14px; padding: 24px 25px 20px; border-bottom: 1px solid var(--line); }
+    .modal-header h2 { margin: 0; font-size: 22px; letter-spacing: -.6px; }
+    .modal-header p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .close-button { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 auto; border: 0; border-radius: 10px; background: #f1f4f8; color: #536074; font-size: 22px; }
+    form { padding: 22px 25px 25px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 13px; }
+    .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: #344158; font-size: 12px; font-weight: 800; }
+    .field label span { color: #db5a5a; }
+    .field input, .field select, .field textarea { width: 100%; min-width: 0; border: 1px solid #dce3ec; background: #fff; border-radius: 10px; padding: 12px 12px; color: var(--ink); outline: none; transition: border .15s, box-shadow .15s; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(25,168,145,.12); }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .form-help { color: #8792a2; font-size: 10px; line-height: 1.5; }
+    .end-preview { border: 1px solid #dce3ec; background: #f7f9fb; border-radius: 10px; padding: 12px; color: #14856f; font-size: 14px; font-weight: 800; }
+    .form-alert { display: none; margin: 16px 0 0; padding: 11px 12px; border-radius: 10px; color: #a83737; background: #fff0f0; font-size: 12px; line-height: 1.5; }
+    .form-alert.show { display: block; }
+    .form-actions { display: flex; gap: 10px; margin-top: 21px; }
+    .form-actions button { flex: 1; }
+    .cancel-button { border: 1px solid #dce3ec; border-radius: 12px; background: white; color: #536074; font-weight: 750; padding: 13px; }
+    .toast { position: fixed; z-index: 20; bottom: 24px; left: 50%; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; background: #14263b; color: white; border-radius: 12px; padding: 13px 18px; box-shadow: var(--shadow); font-size: 13px; font-weight: 700; transition: .2s ease; max-width: calc(100% - 32px); text-align: center; }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+    .privacy-note { display: flex; gap: 8px; align-items: flex-start; margin-top: 17px; padding: 11px 12px; border-radius: 10px; background: #f6f8fb; color: #748094; font-size: 10px; line-height: 1.55; }
+    .admin-view { margin-top: 4px; }
+    .admin-card { padding: 25px; }
+    .admin-login-form { max-width: 440px; padding: 0; }
+    .admin-login-form .primary { width: 100%; margin-top: 14px; }
+    .admin-warning { margin-top: 14px; padding: 12px 14px; border-radius: 11px; background: #fff8e8; color: #80632c; font-size: 11px; line-height: 1.6; }
+    .admin-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    .admin-toolbar h3 { margin: 0; font-size: 18px; }
+    .admin-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .admin-toolbar input { border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; background: white; color: var(--ink); }
+    .admin-booking-list { display: grid; gap: 10px; }
+    .admin-booking-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 13px; background: white; }
+    .admin-booking-main { min-width: 0; }
+    .admin-booking-main strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+    .admin-booking-main p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+    .admin-booking-actions { display: flex; gap: 7px; flex: 0 0 auto; }
+    .small-button { border: 1px solid #dce3ec; border-radius: 9px; background: white; color: #344158; font-size: 12px; font-weight: 750; padding: 9px 11px; }
+    .small-button.delete { color: #b33838; border-color: #f0d4d4; background: #fff8f8; }
+    .admin-status { display: inline-flex; margin-bottom: 12px; border-radius: 999px; padding: 6px 10px; background: var(--green-bg); color: var(--green); font-size: 11px; font-weight: 800; }
+    [hidden] { display: none !important; }
+    @media (max-width: 850px) {
+      .dashboard { grid-template-columns: 1fr; }
+      .reserve-card { min-height: auto; }
+      .reserve-card .primary { max-width: 300px; }
+      .mini-stats { max-width: 350px; }
+      .welcome { padding: 30px 27px; }
+    }
+    @media (max-width: 560px) {
+      .nav { padding: 14px 16px; }
+      .brand-name { font-size: 15px; }
+      .brand-icon { width: 38px; height: 38px; }
+      .nav-right { gap: 10px; }
+      .nav-link { display: none; }
+      #adminLink { display: inline-flex; font-size: 12px; }
+      .nav-cta { padding: 10px 12px; font-size: 12px; }
+      main { padding: 21px 14px 36px; }
+      .welcome { padding: 27px 22px; border-radius: 18px; }
+      h1 { font-size: 30px; }
+      .welcome p { font-size: 13px; }
+      .section-heading { align-items: flex-start; flex-direction: column; margin-top: 27px; }
+      .reserve-card, .schedule-card { padding: 19px; }
+      .schedule-top { align-items: flex-start; flex-direction: column; }
+      .date-control { width: 100%; justify-content: space-between; }
+      .date-control input { max-width: 175px; }
+      .time-row { grid-template-columns: 76px minmax(0,1fr); gap: 8px; }
+      .time-slot { padding: 9px; }
+      .booking-pill { gap: 5px; }
+      .reserved-tag { font-size: 9px; padding: 4px 5px; }
+      footer { padding: 0 16px 24px; flex-direction: column; gap: 5px; }
+      .modal-backdrop { padding: 10px; align-items: flex-end; }
+      .modal { border-radius: 18px 18px 12px 12px; max-height: 94vh; }
+      .modal-header { padding: 21px 19px 17px; }
+      form { padding: 19px; }
+      .form-grid { gap: 14px 10px; }
+      .field input, .field select, .field textarea { padding: 11px 10px; font-size: 13px; }
+      .admin-card { padding: 18px; }
+      .admin-booking-item { align-items: stretch; flex-direction: column; }
+      .admin-booking-actions { width: 100%; }
+      .admin-booking-actions button { flex: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *:before, *:after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="nav" aria-label="주요 메뉴">
+      <a class="brand" href="#home" aria-label="체력단련실 예약 홈">
+        <span class="brand-icon" aria-hidden="true">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/></svg>
+        </span>
+        <span><span class="brand-name">체력단련실 예약</span><span class="brand-sub">FITNESS ROOM BOOKING</span></span>
+      </a>
+      <div class="nav-right">
+        <button class="nav-link" id="homeLink" type="button">홈</button>
+        <button class="nav-link" id="scheduleLink" type="button">예약 현황</button>
+        <button class="nav-link" id="adminLink" type="button">관리자</button>
+        <button class="nav-cta" type="button" data-open-booking>예약하기 <span aria-hidden="true">↗</span></button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="home">
+    <div id="homeView">
+    <section class="welcome" aria-labelledby="welcomeTitle">
+      <div class="eyebrow"><span class="eyebrow-dot"></span> SCHOOL FITNESS ROOM</div>
+      <h1 id="welcomeTitle">함께 사용하는 공간,<br />편리하게 예약하세요.</h1>
+      <p>아침, 점심시간과 수업 종료 후에 체력단련실을 예약할 수 있습니다. 날짜와 요일에 맞춰 예약 가능 시간이 자동으로 바뀝니다.</p>
+      <div class="welcome-actions">
+        <button class="primary" type="button" data-open-booking>체력단련실 예약하기 <span aria-hidden="true">→</span></button>
+        <button class="secondary-dark" type="button" id="jumpSchedule">예약 현황 확인</button>
+      </div>
+    </section>
+
+    <div class="section-heading" id="scheduleHeading">
+      <div>
+        <h2>오늘의 이용 현황</h2>
+        <p>날짜를 선택해 시간대별 예약자 명단을 확인하세요.</p>
+      </div>
+      <span class="today-chip" id="dayChip">오늘의 예약</span>
+    </div>
+
+    <section class="dashboard" aria-label="예약 및 이용 현황">
+      <article class="card reserve-card">
+        <div class="card-symbol" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h3M8 17h7"/></svg>
+        </div>
+        <h3>이용 시간 예약</h3>
+        <p>이름과 학년·반을 입력하고 아침·점심·방과 후 이용 날짜와 시작 시간, 이용 시간(5~20분)을 선택하세요. 예약 후에는 오른쪽 현황에 바로 반영됩니다.</p>
+        <button class="primary" type="button" data-open-booking>예약 정보 작성하기 <span aria-hidden="true">→</span></button>
+        <div class="mini-stats">
+          <div class="mini-stat"><strong id="todayCount">0</strong><span>선택한 날짜 예약</span></div>
+          <div class="mini-stat"><strong id="availableCount">—</strong><span>예약 가능 시작 시각</span></div>
+        </div>
+      </article>
+
+      <article class="card schedule-card" id="scheduleCard">
+        <div class="schedule-top">
+          <h3>시간별 예약자 명단</h3>
+          <label class="date-control" for="scheduleDate">예약 날짜 <input id="scheduleDate" type="date" /></label>
+        </div>
+        <p class="schedule-note" id="scheduleNote">아침 06:30–08:30 · 점심 12:40–13:40 · 방과 후 요일별 시작~17:30 · 5분 단위</p>
+        <div class="time-list" id="timeList" aria-live="polite"></div>
+        <p class="footnote">※ 예약 현황은 이 브라우저에 저장된 내용 기준입니다. 실제 학교 전체 이용자에게 공유하려면 서버·공용 데이터베이스 연결이 필요합니다.</p>
+      </article>
+    </section>
+    </div>
+
+    <section id="adminView" class="admin-view" hidden aria-labelledby="adminTitle">
+      <div class="section-heading">
+        <div><h2 id="adminTitle">관리자 페이지</h2><p>관리자 인증 후 예약 정보를 수정하거나 삭제할 수 있습니다.</p></div>
+        <button class="cancel-button" id="backHomeButton" type="button">홈으로</button>
+      </div>
+      <div class="card admin-card" id="adminLoginCard">
+        <span class="admin-status">ADMIN ACCESS</span>
+        <h3 style="margin:0 0 8px;font-size:19px">관리자 로그인</h3>
+        <p style="margin:0 0 20px;color:var(--muted);font-size:13px;line-height:1.7">관리자 비밀번호를 입력해 예약 관리 기능에 접근하세요.</p>
+        <form class="admin-login-form" id="adminLoginForm">
+          <div class="field"><label for="adminPassword">관리자 비밀번호 <span>*</span></label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="비밀번호 입력" required /></div>
+          <div class="form-alert" id="adminLoginAlert" role="alert"></div>
+          <button class="primary" type="submit">로그인</button>
+        </form>
+        <div class="admin-warning">시제품 안내: 이 단일 HTML 버전의 비밀번호 확인은 브라우저 안에서 실행됩니다. 실제 학교 운영에서는 비밀번호가 코드에서 노출될 수 있으므로 서버 기반 관리자 인증으로 교체해야 합니다.</div>
+      </div>
+      <div id="adminPanel" hidden>
+        <div class="card admin-card">
+          <div class="admin-toolbar">
+            <div><h3>전체 예약 관리</h3><p style="margin:5px 0 0;color:var(--muted);font-size:12px">예약 내용을 수정하거나 예약을 삭제할 수 있습니다.</p></div>
+            <div class="admin-toolbar-actions"><input type="date" id="adminFilterDate" aria-label="예약 날짜 필터" /><button class="small-button" type="button" id="clearAdminFilter">전체 날짜</button><button class="small-button" type="button" id="adminLogoutButton">로그아웃</button></div>
+          </div>
+          <div class="admin-booking-list" id="adminBookingsList" aria-live="polite"></div>
+          <p class="footnote">※ 관리 기능은 관리자 로그인 상태에서만 표시됩니다. 이 시제품은 예약 데이터와 인증이 같은 브라우저 안에 있으므로 실서비스 보안 기능을 대체하지 않습니다.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><span>체력단련실 예약 서비스</span><span>안전하고 질서 있는 시설 이용을 위해 예약 시간을 지켜 주세요.</span></footer>
+
+  <div class="modal-backdrop" id="bookingModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+    <section class="modal">
+      <div class="modal-header">
+        <div><h2 id="modalTitle">체력단련실 예약</h2><p>예약 정보를 작성해 주세요. 필수 항목은 모두 입력해야 합니다.</p></div>
+        <button type="button" class="close-button" id="closeModal" aria-label="예약 창 닫기">×</button>
+      </div>
+      <form id="bookingForm">
+        <div class="form-grid">
+          <div class="field full"><label for="studentName">예약자 이름 <span>*</span></label><input id="studentName" name="studentName" maxlength="20" autocomplete="name" placeholder="이름 입력" required /></div>
+          <div class="field"><label for="studentGrade">학년 <span>*</span></label><select id="studentGrade" name="studentGrade" required><option value="">학년 선택</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select></div>
+          <div class="field"><label for="studentClass">반 <span>*</span></label><select id="studentClass" name="studentClass" required><option value="">반 선택</option></select></div>
+          <div class="field"><label for="headcount">예약 인원 <span>*</span></label><select id="headcount" name="headcount" required></select><span class="form-help">최대 10명까지 선택할 수 있습니다.</span></div>
+          <div class="field"><label for="bookingDate">이용 날짜 <span>*</span></label><input id="bookingDate" name="bookingDate" type="date" required /></div>
+          <div class="field"><label for="startTime">시작 시간 <span>*</span></label><select id="startTime" name="startTime" required></select></div>
+          <div class="field"><label for="duration">이용 시간 <span>*</span></label><select id="duration" name="duration" required></select><span class="form-help">5분, 10분, 15분, 20분 중 선택할 수 있습니다. 최대 이용 시간은 20분입니다.</span></div>
+          <div class="field full"><label>예상 종료 시간</label><div class="end-preview" id="endTimePreview" aria-live="polite">시작 시간과 이용 시간을 선택하면 표시됩니다.</div></div>
+          <div class="field full"><label for="bookingPurpose">이용 목적 (선택)</label><textarea id="bookingPurpose" name="bookingPurpose" maxlength="120" placeholder="예: 동아리 체력 훈련"></textarea></div>
+        </div>
+        <div class="privacy-note"><span aria-hidden="true">ⓘ</span><span>이름, 학년·반, 예약 인원은 이용 확인을 위해 현황에 표시됩니다. 이 데모는 입력 정보를 현재 브라우저에만 저장합니다.</span></div>
+        <div class="form-alert" id="formAlert" role="alert"></div>
+        <div class="form-actions"><button type="button" class="cancel-button" id="cancelModal">취소</button><button type="submit" class="primary" id="bookingSubmitButton">예약 확정하기</button></div>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+      const STORAGE_KEY = 'school-fitness-room-bookings-v2';
+      const LEGACY_STORAGE_KEY = 'school-fitness-room-bookings-v1';
+      // 평일 아침·점심·방과 후 운영 시간입니다. 모든 예약은 5분 단위이며 최대 20분입니다.
+      const MORNING_START = 6 * 60 + 30;
+      const MORNING_END = 8 * 60 + 30;
+      const LUNCH_START = 12 * 60 + 40;
+      const LUNCH_END = 13 * 60 + 40;
+      const SIX_CLASS_END = 15 * 60 + 30; // 월·수·금
+      const SEVEN_CLASS_END = 16 * 60 + 30; // 화·목
+      const CLOSE_MINUTE = 17 * 60 + 30;
+      const STEP = 5;
+      const ALLOWED_DURATIONS = [5, 10, 15, 20];
+      // 시제품용 비밀번호입니다. 실서비스에서는 서버 인증을 사용해야 합니다.
+      const ADMIN_PASSWORD = '2468';
+      const $ = (id) => document.getElementById(id);
+      const modal = $('bookingModal');
+      const form = $('bookingForm');
+      const alertBox = $('formAlert');
+      let toastTimer;
+      let editingBookingId = null;
+      let adminLoggedIn = false;
+
+      function localDateString(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      function prettyDate(dateString) {
+        const date = new Date(`${dateString}T12:00:00`);
+        return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(date);
+      }
+      function timeLabel(value) {
+        const n = Number(value);
+        return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+      }
+      function migrateLegacyBookings() {
+        try {
+          const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+          if (!raw) return [];
+          const legacy = JSON.parse(raw);
+          if (!Array.isArray(legacy)) return [];
+          const converted = legacy.filter(item => item && item.date && item.start && item.end && item.name).map(item => {
+            const classText = String(item.studentClass || '');
+            const gradeMatch = classText.match(/([1-3])\s*학년/);
+            const classMatch = classText.match(/(\d+)\s*반/);
+            return {
+              id: item.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              name: String(item.name),
+              grade: gradeMatch ? Number(gradeMatch[1]) : 1,
+              classNo: classMatch ? Number(classMatch[1]) : 1,
+              studentClass: classText || '학년·반 미입력',
+              headcount: 1,
+              date: String(item.date),
+              start: Number(item.start) * 60,
+              end: Number(item.end) * 60,
+              purpose: String(item.purpose || ''),
+              createdAt: item.createdAt || new Date().toISOString()
+            };
+          });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(converted));
+          return converted;
+        } catch (error) {
+          return [];
+        }
+      }
+      function readBookings() {
+        try {
+          let raw = localStorage.getItem(STORAGE_KEY);
+          let list;
+          if (raw === null) list = migrateLegacyBookings();
+          else list = JSON.parse(raw);
+          return Array.isArray(list) ? list.filter(item => item && item.date && Number.isFinite(Number(item.start)) && Number.isFinite(Number(item.end)) && item.name) : [];
+        } catch (error) {
+          return [];
+        }
+      }
+      function writeBookings(bookings) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+          return true;
+        } catch (error) {
+          showToast('예약 정보를 저장하지 못했습니다. 브라우저 설정을 확인해 주세요.');
+          return false;
+        }
+      }
+      function setupClassAndPeopleOptions() {
+        const classSelect = $('studentClass');
+        for (let n = 1; n <= 20; n++) {
+          const option = document.createElement('option');
+          option.value = String(n);
+          option.textContent = `${n}반`;
+          classSelect.appendChild(option);
+        }
+        const headcount = $('headcount');
+        for (let n = 1; n <= 10; n++) {
+          const option = document.createElement('option');
+          option.value = String(n);
+          option.textContent = `${n}명`;
+          headcount.appendChild(option);
+        }
+      }
+      function getOperatingWindows(dateString) {
+        if (!dateString) return [];
+        const weekday = new Date(`${dateString}T12:00:00`).getDay();
+        if (weekday === 0 || weekday === 6) return []; // 주말은 운영하지 않습니다.
+        const windows = [
+          { start: MORNING_START, end: MORNING_END, label: '아침 이용' },
+          { start: LUNCH_START, end: LUNCH_END, label: '점심시간' }
+        ];
+        if ([1, 3, 5].includes(weekday)) {
+          windows.push({ start: SIX_CLASS_END, end: CLOSE_MINUTE, label: '방과 후 · 6교시 종료' });
+        } else {
+          windows.push({ start: SEVEN_CLASS_END, end: CLOSE_MINUTE, label: '방과 후 · 7교시 종료' });
+        }
+        return windows;
+      }
+      function findOperatingWindow(dateString, start, end, validateDuration = true) {
+        const from = Number(start);
+        const to = Number(end);
+        return getOperatingWindows(dateString).find(window => {
+          const duration = to - from;
+          return from >= window.start && to <= window.end && from < to &&
+            (from - window.start) % STEP === 0 &&
+            (!validateDuration || ALLOWED_DURATIONS.includes(duration));
+        }) || null;
+      }
+      function setUpTimeOptions(startValue, durationValue, dateString = $('bookingDate').value) {
+        const start = $('startTime');
+        const duration = $('duration');
+        const windows = getOperatingWindows(dateString);
+        start.replaceChildren();
+        duration.replaceChildren();
+        windows.forEach(window => {
+          for (let minute = window.start; minute < window.end; minute += STEP) {
+            const option = document.createElement('option');
+            option.value = String(minute);
+            option.textContent = `${timeLabel(minute)} · ${window.label}`;
+            start.appendChild(option);
+          }
+        });
+        if (!windows.length) {
+          const startOption = document.createElement('option');
+          startOption.value = '';
+          startOption.textContent = '예약할 수 없는 날짜입니다';
+          start.appendChild(startOption);
+          const durationOption = document.createElement('option');
+          durationOption.value = '';
+          durationOption.textContent = '이용 시간 없음';
+          duration.appendChild(durationOption);
+          start.disabled = true;
+          duration.disabled = true;
+          $('endTimePreview').textContent = '운영하지 않는 날짜입니다.';
+          return;
+        }
+        start.disabled = false;
+        duration.disabled = false;
+        const validStarts = [...start.options].map(option => Number(option.value));
+        const chosenStart = validStarts.includes(Number(startValue)) ? Number(startValue) : validStarts[0];
+        start.value = String(chosenStart);
+        updateDurationOptions(durationValue);
+      }
+      function updateDurationOptions(preferredDuration) {
+        const start = $('startTime');
+        const duration = $('duration');
+        const startMinute = Number(start.value);
+        const dateString = $('bookingDate').value;
+        const window = getOperatingWindows(dateString).find(item => startMinute >= item.start && startMinute < item.end);
+        const previous = Number(preferredDuration ?? duration.value);
+        duration.replaceChildren();
+        if (!window) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = '이용 시간 없음';
+          duration.appendChild(option);
+          duration.disabled = true;
+          $('endTimePreview').textContent = '종료 시간을 계산할 수 없습니다.';
+          return;
+        }
+        const validDurations = ALLOWED_DURATIONS.filter(minutes => startMinute + minutes <= window.end);
+        validDurations.forEach(minutes => {
+          const option = document.createElement('option');
+          option.value = String(minutes);
+          option.textContent = `${minutes}분`;
+          duration.appendChild(option);
+        });
+        duration.disabled = validDurations.length === 0;
+        if (!validDurations.length) {
+          $('endTimePreview').textContent = '해당 운영 시간 안에 이용할 수 있는 시간이 없습니다.';
+          return;
+        }
+        duration.value = String(validDurations.includes(previous) ? previous : validDurations[0]);
+        updateEndTimePreview();
+      }
+      function updateEndTimePreview() {
+        const start = Number($('startTime').value);
+        const minutes = Number($('duration').value);
+        if (Number.isFinite(start) && Number.isFinite(minutes) && minutes > 0) {
+          $('endTimePreview').textContent = `${timeLabel(start)} ~ ${timeLabel(start + minutes)} (${minutes}분 이용)`;
+        } else {
+          $('endTimePreview').textContent = '시작 시간과 이용 시간을 선택하면 표시됩니다.';
+        }
+      }
+      function showAlert(message) {
+        alertBox.textContent = message;
+        alertBox.classList.add('show');
+      }
+      function clearAlert() {
+        alertBox.textContent = '';
+        alertBox.classList.remove('show');
+      }
+      function showToast(message) {
+        const toast = $('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+      }
+      function resetBookingForm() {
+        form.reset();
+        clearAlert();
+        $('studentGrade').value = '';
+        $('studentClass').value = '';
+        $('headcount').value = '1';
+        $('startTime').disabled = false;
+        $('duration').disabled = false;
+      }
+      function openModal() {
+        editingBookingId = null;
+        resetBookingForm();
+        $('modalTitle').textContent = '체력단련실 예약';
+        $('bookingSubmitButton').textContent = '예약 확정하기';
+        const today = localDateString();
+        $('bookingDate').min = today;
+        $('bookingDate').value = $('scheduleDate').value || today;
+        setUpTimeOptions(undefined, undefined, $('bookingDate').value);
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => $('studentName').focus(), 50);
+      }
+      function isWithinOperatingHours(start, end, dateString) {
+        return Boolean(findOperatingWindow(dateString, start, end, true));
+      }
+      function openEditModal(id) {
+        if (!adminLoggedIn) return showToast('관리자 로그인 후 수정할 수 있습니다.');
+        const item = readBookings().find(booking => booking.id === id);
+        if (!item) return showToast('예약 정보를 찾을 수 없습니다.');
+        if (!getOperatingWindows(item.date).some(window => item.start >= window.start && item.end <= window.end)) return showToast('기존 예약 시간이 새 운영 시간과 맞지 않습니다. 관리자 목록에서 삭제하거나 새 운영 시간에 맞춰 다시 예약해 주세요.');
+        editingBookingId = id;
+        resetBookingForm();
+        $('modalTitle').textContent = '예약 정보 수정';
+        $('bookingSubmitButton').textContent = '수정 내용 저장';
+        $('studentName').value = item.name;
+        $('studentGrade').value = String(item.grade || 1);
+        $('studentClass').value = String(item.classNo || 1);
+        $('headcount').value = String(Math.min(10, Math.max(1, Number(item.headcount || 1))));
+        $('bookingDate').min = localDateString();
+        $('bookingDate').value = item.date;
+        setUpTimeOptions(Number(item.start), Number(item.end) - Number(item.start) <= 20 ? Number(item.end) - Number(item.start) : 20, item.date);
+        $('bookingPurpose').value = item.purpose || '';
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => $('studentName').focus(), 50);
+      }
+      function closeModal() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        editingBookingId = null;
+      }
+      function showHome() {
+        $('homeView').hidden = false;
+        $('adminView').hidden = true;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      function showAdmin() {
+        $('homeView').hidden = true;
+        $('adminView').hidden = false;
+        $('adminLoginCard').hidden = adminLoggedIn;
+        $('adminPanel').hidden = !adminLoggedIn;
+        if (adminLoggedIn) renderAdminBookings();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      function goToSchedule() {
+        showHome();
+        $('scheduleCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $('scheduleDate').focus({ preventScroll: true });
+      }
+      function hasConflict(bookings, date, start, end, exceptId = null) {
+        return bookings.some(item => item.id !== exceptId && item.date === date && Number(item.start) < end && Number(item.end) > start);
+      }
+      function initials(name) { return Array.from(name.trim())[0] || '학'; }
+      function renderSchedule() {
+        const date = $('scheduleDate').value || localDateString();
+        const bookings = readBookings().filter(item => item.date === date).sort((a, b) => Number(a.start) - Number(b.start));
+        const windows = getOperatingWindows(date);
+        const weekday = new Date(`${date}T12:00:00`).getDay();
+        $('todayCount').textContent = String(bookings.length);
+        $('dayChip').textContent = date === localDateString() ? '오늘의 예약' : prettyDate(date);
+        if (weekday === 0 || weekday === 6) {
+          $('scheduleNote').textContent = '토요일과 일요일은 운영하지 않습니다.';
+        } else {
+          const afterSchool = weekday === 1 || weekday === 3 || weekday === 5 ? '6교시 종료 15:30' : '7교시 종료 16:30';
+          $('scheduleNote').textContent = `아침 06:30–08:30 · 점심 12:40–13:40 · ${afterSchool} 이후~17:30 · 5분 단위, 최대 20분 이용`;
+        }
+        let available = 0;
+        windows.forEach(window => {
+          for (let minute = window.start; minute < window.end; minute += STEP) {
+            if (!bookings.some(item => Number(item.start) < minute + STEP && Number(item.end) > minute)) available++;
+          }
+        });
+        $('availableCount').textContent = String(available);
+        const list = $('timeList');
+        list.replaceChildren();
+        if (!windows.length) {
+          const closed = document.createElement('div');
+          closed.className = 'empty-state';
+          closed.textContent = '주말에는 체력단련실을 운영하지 않습니다.';
+          list.append(closed);
+          return;
+        }
+        windows.forEach(window => {
+          const heading = document.createElement('div');
+          heading.className = 'window-heading';
+          heading.textContent = `${window.label} · ${timeLabel(window.start)}–${timeLabel(window.end)}`;
+          list.append(heading);
+          const inWindow = bookings.filter(item => Number(item.start) < window.end && Number(item.end) > window.start);
+          if (!inWindow.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = '예약이 없습니다. 이 시간대는 예약할 수 있습니다.';
+            list.append(empty);
+            return;
+          }
+          inWindow.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'time-row';
+            const label = document.createElement('div');
+            label.className = 'time-label';
+            const range = document.createElement('span');
+            range.textContent = `${timeLabel(item.start)}–${timeLabel(item.end)}`;
+            const sub = document.createElement('small');
+            sub.textContent = `${Number(item.end) - Number(item.start)}분 이용`;
+            label.append(range, sub);
+            const slot = document.createElement('div');
+            slot.className = 'time-slot';
+            const pill = document.createElement('div');
+            pill.className = 'booking-pill';
+            const person = document.createElement('div');
+            person.className = 'booking-person';
+            const avatar = document.createElement('span');
+            avatar.className = 'person-avatar';
+            avatar.textContent = initials(item.name);
+            const info = document.createElement('div');
+            info.className = 'person-info';
+            const strong = document.createElement('strong');
+            strong.textContent = `${item.name} · ${item.headcount || 1}명`;
+            const small = document.createElement('small');
+            small.textContent = item.studentClass || `${item.grade || 1}학년 ${item.classNo || 1}반`;
+            info.append(strong, small);
+            person.append(avatar, info);
+            const tag = document.createElement('span');
+            tag.className = 'reserved-tag';
+            tag.textContent = '예약 완료';
+            pill.append(person, tag);
+            slot.append(pill);
+            row.append(label, slot);
+            list.append(row);
+          });
+        });
+      }
+      function renderAdminBookings() {
+        if (!adminLoggedIn) return;
+        const filterDate = $('adminFilterDate').value;
+        const all = readBookings().sort((a, b) => a.date.localeCompare(b.date) || Number(a.start) - Number(b.start));
+        const bookings = filterDate ? all.filter(item => item.date === filterDate) : all;
+        const list = $('adminBookingsList');
+        list.replaceChildren();
+        if (!bookings.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.textContent = filterDate ? '해당 날짜에 예약이 없습니다.' : '등록된 예약이 없습니다.';
+          list.append(empty);
+          return;
+        }
+        bookings.forEach(item => {
+          const card = document.createElement('article');
+          card.className = 'admin-booking-item';
+          const main = document.createElement('div');
+          main.className = 'admin-booking-main';
+          const title = document.createElement('strong');
+          title.textContent = `${item.name} · ${item.studentClass || `${item.grade || 1}학년 ${item.classNo || 1}반`}`;
+          const detail = document.createElement('p');
+          detail.textContent = `${prettyDate(item.date)} · ${timeLabel(item.start)}–${timeLabel(item.end)} · 예약 인원 ${item.headcount || 1}명${item.purpose ? ` · 목적: ${item.purpose}` : ''}`;
+          main.append(title, detail);
+          const actions = document.createElement('div');
+          actions.className = 'admin-booking-actions';
+          const edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'small-button';
+          edit.textContent = '수정';
+          edit.addEventListener('click', () => openEditModal(item.id));
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'small-button delete';
+          remove.textContent = '삭제';
+          remove.addEventListener('click', () => deleteBooking(item.id));
+          actions.append(edit, remove);
+          card.append(main, actions);
+          list.append(card);
+        });
+      }
+      function deleteBooking(id) {
+        if (!adminLoggedIn) return showToast('관리자 로그인 후 삭제할 수 있습니다.');
+        const item = readBookings().find(booking => booking.id === id);
+        if (!item) return showToast('예약 정보를 찾을 수 없습니다.');
+        if (!window.confirm(`${item.name}님의 ${prettyDate(item.date)} ${timeLabel(item.start)}–${timeLabel(item.end)} 예약을 삭제할까요?`)) return;
+        const updated = readBookings().filter(booking => booking.id !== id);
+        if (!writeBookings(updated)) return;
+        renderAdminBookings();
+        renderSchedule();
+        showToast('예약이 삭제되었습니다.');
+      }
+
+      document.querySelectorAll('[data-open-booking]').forEach(button => button.addEventListener('click', openModal));
+      $('closeModal').addEventListener('click', closeModal);
+      $('cancelModal').addEventListener('click', closeModal);
+      $('homeLink').addEventListener('click', showHome);
+      $('adminLink').addEventListener('click', showAdmin);
+      $('backHomeButton').addEventListener('click', showHome);
+      $('scheduleLink').addEventListener('click', goToSchedule);
+      $('jumpSchedule').addEventListener('click', goToSchedule);
+      $('startTime').addEventListener('change', () => updateDurationOptions());
+      $('duration').addEventListener('change', updateEndTimePreview);
+      $('bookingDate').addEventListener('change', () => setUpTimeOptions(undefined, undefined, $('bookingDate').value));
+      $('scheduleDate').addEventListener('change', renderSchedule);
+      $('adminFilterDate').addEventListener('change', renderAdminBookings);
+      $('clearAdminFilter').addEventListener('click', () => { $('adminFilterDate').value = ''; renderAdminBookings(); });
+      $('adminLogoutButton').addEventListener('click', () => {
+        adminLoggedIn = false;
+        $('adminPassword').value = '';
+        $('adminLoginCard').hidden = false;
+        $('adminPanel').hidden = true;
+        showToast('관리자 로그아웃이 완료되었습니다.');
+      });
+      $('adminLoginForm').addEventListener('submit', event => {
+        event.preventDefault();
+        const alert = $('adminLoginAlert');
+        alert.textContent = '';
+        alert.classList.remove('show');
+        if ($('adminPassword').value !== ADMIN_PASSWORD) {
+          alert.textContent = '비밀번호가 올바르지 않습니다.';
+          alert.classList.add('show');
+          return;
+        }
+        adminLoggedIn = true;
+        $('adminPassword').value = '';
+        showAdmin();
+        showToast('관리자 로그인에 성공했습니다.');
+      });
+      modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
+      document.addEventListener('keydown', event => { if (event.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
+
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        clearAlert();
+        const name = $('studentName').value.trim();
+        const grade = Number($('studentGrade').value);
+        const classNo = Number($('studentClass').value);
+        const studentClass = `${grade}학년 ${classNo}반`;
+        const headcount = Number($('headcount').value);
+        const date = $('bookingDate').value;
+        const start = Number($('startTime').value);
+        const duration = Number($('duration').value);
+        const end = start + duration;
+        const purpose = $('bookingPurpose').value.trim();
+        const today = localDateString();
+        if (editingBookingId && !adminLoggedIn) return showAlert('관리자 로그인 후 예약을 수정할 수 있습니다.');
+        if (!name || !grade || !classNo || !date) return showAlert('이름, 학년, 반, 이용 날짜를 모두 선택해 주세요.');
+        if (!(headcount >= 1 && headcount <= 10 && Number.isInteger(headcount))) return showAlert('예약 인원은 1명부터 10명까지 선택할 수 있습니다.');
+        if (date < today) return showAlert('지난 날짜는 예약할 수 없습니다.');
+        if (!ALLOWED_DURATIONS.includes(duration)) return showAlert('이용 시간은 5분, 10분, 15분, 20분 중에서 선택해 주세요.');
+        if (!isWithinOperatingHours(start, end, date)) return showAlert('예약 가능 시간은 평일 아침 06:30~08:30, 점심 12:40~13:40, 방과 후(월·수·금 15:30부터 / 화·목 16:30부터)~17:30입니다. 이용 시간은 최대 20분입니다.');
+        if (date === today) {
+          const now = new Date();
+          const nowMinute = now.getHours() * 60 + now.getMinutes();
+          if (start < nowMinute) return showAlert('이미 시작된 시간대는 예약할 수 없습니다. 다른 시간을 선택해 주세요.');
+        }
+        const bookings = readBookings();
+        if (hasConflict(bookings, date, start, end, editingBookingId)) return showAlert('선택한 시간에 이미 예약이 있습니다. 예약 현황을 확인하고 다른 시간을 선택해 주세요.');
+        let updated;
+        if (editingBookingId) {
+          updated = bookings.map(item => item.id === editingBookingId ? { ...item, name, grade, classNo, studentClass, headcount, date, start, end, purpose, updatedAt: new Date().toISOString() } : item);
+        } else {
+          updated = [...bookings, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, grade, classNo, studentClass, headcount, date, start, end, purpose, createdAt: new Date().toISOString() }];
+        }
+        if (!writeBookings(updated)) return;
+        $('scheduleDate').value = date;
+        renderSchedule();
+        const wasEditing = Boolean(editingBookingId);
+        closeModal();
+        resetBookingForm();
+        if (adminLoggedIn) renderAdminBookings();
+        showToast(wasEditing ? '예약 정보가 수정되었습니다.' : `${name}님의 예약이 완료되었습니다.`);
+      });
+
+      setupClassAndPeopleOptions();
+      $('scheduleDate').value = localDateString();
+      $('bookingDate').min = localDateString();
+      $('bookingDate').value = localDateString();
+      setUpTimeOptions(undefined, undefined, $('bookingDate').value);
+      renderSchedule();
+    })();
+  </script>
+</body>
+</html>
