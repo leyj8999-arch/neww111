@@ -298,11 +298,15 @@
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     (() => {
       'use strict';
-      const STORAGE_KEY = 'school-fitness-room-bookings-v2';
-      const LEGACY_STORAGE_KEY = 'school-fitness-room-bookings-v1';
+      const SUPABASE_URL = 'https://aijzzvzoxsgyaayguera.supabase.co';
+      const SUPABASE_KEY = 'sb_publishable_KDAYA-BP6zGzHo7QK-ioIQ_5X03mnhE';
+      const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      let bookingCache = [];
+      let scheduleChannel = null;
       // 평일 아침·점심·방과 후 운영 시간입니다. 모든 예약은 5분 단위이며 최대 20분입니다.
       const MORNING_START = 6 * 60 + 30;
       const MORNING_END = 8 * 60 + 30;
