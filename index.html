@@ -235,7 +235,7 @@
         </div>
         <p class="schedule-note" id="scheduleNote">아침 06:30–08:30 · 점심 12:40–13:40 · 방과 후 요일별 시작~17:30 · 5분 단위</p>
         <div class="time-list" id="timeList" aria-live="polite"></div>
-        <p class="footnote">※ 예약 현황은 이 브라우저에 저장된 내용 기준입니다. 실제 학교 전체 이용자에게 공유하려면 서버·공용 데이터베이스 연결이 필요합니다.</p>
+        <p class="footnote">※ 예약 현황은 공용 서버에 저장되며 모든 기기에서 동일하게 표시됩니다. 개인정보는 관리자에게만 공개됩니다.</p>
       </article>
     </section>
     </div>
@@ -248,13 +248,14 @@
       <div class="card admin-card" id="adminLoginCard">
         <span class="admin-status">ADMIN ACCESS</span>
         <h3 style="margin:0 0 8px;font-size:19px">관리자 로그인</h3>
-        <p style="margin:0 0 20px;color:var(--muted);font-size:13px;line-height:1.7">관리자 비밀번호를 입력해 예약 관리 기능에 접근하세요.</p>
+        <p style="margin:0 0 20px;color:var(--muted);font-size:13px;line-height:1.7">관리자 계정 이메일과 비밀번호로 로그인하세요.</p>
         <form class="admin-login-form" id="adminLoginForm">
+          <div class="field"><label for="adminEmail">관리자 이메일 <span>*</span></label><input id="adminEmail" type="email" autocomplete="username" placeholder="관리자 이메일" required /></div>
           <div class="field"><label for="adminPassword">관리자 비밀번호 <span>*</span></label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="비밀번호 입력" required /></div>
           <div class="form-alert" id="adminLoginAlert" role="alert"></div>
           <button class="primary" type="submit">로그인</button>
         </form>
-        <div class="admin-warning">시제품 안내: 이 단일 HTML 버전의 비밀번호 확인은 브라우저 안에서 실행됩니다. 실제 학교 운영에서는 비밀번호가 코드에서 노출될 수 있으므로 서버 기반 관리자 인증으로 교체해야 합니다.</div>
+        <div class="admin-warning">관리자 인증은 Supabase 서버에서 처리됩니다. 계정은 학교 관리자가 별도로 발급해야 합니다.</div>
       </div>
       <div id="adminPanel" hidden>
         <div class="card admin-card">
@@ -263,7 +264,7 @@
             <div class="admin-toolbar-actions"><input type="date" id="adminFilterDate" aria-label="예약 날짜 필터" /><button class="small-button" type="button" id="clearAdminFilter">전체 날짜</button><button class="small-button" type="button" id="adminLogoutButton">로그아웃</button></div>
           </div>
           <div class="admin-booking-list" id="adminBookingsList" aria-live="polite"></div>
-          <p class="footnote">※ 관리 기능은 관리자 로그인 상태에서만 표시됩니다. 이 시제품은 예약 데이터와 인증이 같은 브라우저 안에 있으므로 실서비스 보안 기능을 대체하지 않습니다.</p>
+          <p class="footnote">※ 예약 상세 정보는 서버 인증을 통과한 관리자만 조회할 수 있습니다.</p>
         </div>
       </div>
     </section>
@@ -289,7 +290,7 @@
           <div class="field full"><label>예상 종료 시간</label><div class="end-preview" id="endTimePreview" aria-live="polite">시작 시간과 이용 시간을 선택하면 표시됩니다.</div></div>
           <div class="field full"><label for="bookingPurpose">이용 목적 (선택)</label><textarea id="bookingPurpose" name="bookingPurpose" maxlength="120" placeholder="예: 동아리 체력 훈련"></textarea></div>
         </div>
-        <div class="privacy-note"><span aria-hidden="true">ⓘ</span><span>이름, 학년·반, 예약 인원은 이용 확인을 위해 현황에 표시됩니다. 이 데모는 입력 정보를 현재 브라우저에만 저장합니다.</span></div>
+        <div class="privacy-note"><span aria-hidden="true">ⓘ</span><span>이름과 학년·반 등 개인정보는 관리자에게만 표시되며, 일반 예약 현황에는 예약 시간과 인원만 공개됩니다.</span></div>
         <div class="form-alert" id="formAlert" role="alert"></div>
         <div class="form-actions"><button type="button" class="cancel-button" id="cancelModal">취소</button><button type="submit" class="primary" id="bookingSubmitButton">예약 확정하기</button></div>
       </form>
@@ -297,11 +298,15 @@
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     (() => {
       'use strict';
-      const STORAGE_KEY = 'school-fitness-room-bookings-v2';
-      const LEGACY_STORAGE_KEY = 'school-fitness-room-bookings-v1';
+      const SUPABASE_URL = 'https://aijzzvzoxsgyaayguera.supabase.co';
+      const SUPABASE_KEY = 'sb_publishable_KDAYA-BP6zGzHo7QK-ioIQ_5X03mnhE';
+      const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      let bookingCache = [];
+      let scheduleChannel = null;
       // 평일 아침·점심·방과 후 운영 시간입니다. 모든 예약은 5분 단위이며 최대 20분입니다.
       const MORNING_START = 6 * 60 + 30;
       const MORNING_END = 8 * 60 + 30;
@@ -312,8 +317,6 @@
       const CLOSE_MINUTE = 17 * 60 + 30;
       const STEP = 5;
       const ALLOWED_DURATIONS = [5, 10, 15, 20];
-      // 시제품용 비밀번호입니다. 실서비스에서는 서버 인증을 사용해야 합니다.
-      const ADMIN_PASSWORD = '2468';
       const $ = (id) => document.getElementById(id);
       const modal = $('bookingModal');
       const form = $('bookingForm');
@@ -336,55 +339,50 @@
         const n = Number(value);
         return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
       }
-      function migrateLegacyBookings() {
-        try {
-          const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-          if (!raw) return [];
-          const legacy = JSON.parse(raw);
-          if (!Array.isArray(legacy)) return [];
-          const converted = legacy.filter(item => item && item.date && item.start && item.end && item.name).map(item => {
-            const classText = String(item.studentClass || '');
-            const gradeMatch = classText.match(/([1-3])\s*학년/);
-            const classMatch = classText.match(/(\d+)\s*반/);
-            return {
-              id: item.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-              name: String(item.name),
-              grade: gradeMatch ? Number(gradeMatch[1]) : 1,
-              classNo: classMatch ? Number(classMatch[1]) : 1,
-              studentClass: classText || '학년·반 미입력',
-              headcount: 1,
-              date: String(item.date),
-              start: Number(item.start) * 60,
-              end: Number(item.end) * 60,
-              purpose: String(item.purpose || ''),
-              createdAt: item.createdAt || new Date().toISOString()
-            };
-          });
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(converted));
-          return converted;
-        } catch (error) {
-          return [];
-        }
+      function readBookings() { return bookingCache; }
+      function mapPrivateBooking(row) {
+        return {
+          id: row.id, name: row.name, grade: Number(row.grade), classNo: Number(row.class_no),
+          studentClass: `${row.grade}학년 ${row.class_no}반`, headcount: Number(row.headcount),
+          date: row.booking_date, start: Number(row.start_minute), end: Number(row.end_minute),
+          purpose: row.purpose || '', createdAt: row.created_at
+        };
       }
-      function readBookings() {
-        try {
-          let raw = localStorage.getItem(STORAGE_KEY);
-          let list;
-          if (raw === null) list = migrateLegacyBookings();
-          else list = JSON.parse(raw);
-          return Array.isArray(list) ? list.filter(item => item && item.date && Number.isFinite(Number(item.start)) && Number.isFinite(Number(item.end)) && item.name) : [];
-        } catch (error) {
-          return [];
+      async function refreshBookings() {
+        const { data: { session } } = await db.auth.getSession();
+        if (session) {
+          const { data, error } = await db.from('bookings').select('*').order('booking_date').order('start_minute');
+          if (error) throw error;
+          bookingCache = (data || []).map(mapPrivateBooking);
+        } else {
+          const { data, error } = await db.from('booking_schedule').select('*').order('booking_date').order('start_minute');
+          if (error) throw error;
+          bookingCache = (data || []).map(row => ({
+            id: row.id, name: '', grade: 0, classNo: 0, studentClass: '',
+            headcount: Number(row.headcount), date: row.booking_date,
+            start: Number(row.start_minute), end: Number(row.end_minute), purpose: ''
+          }));
         }
+        renderSchedule();
+        if (adminLoggedIn) renderAdminBookings();
       }
-      function writeBookings(bookings) {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
-          return true;
-        } catch (error) {
-          showToast('예약 정보를 저장하지 못했습니다. 브라우저 설정을 확인해 주세요.');
-          return false;
+      async function writeBooking(payload, id = null) {
+        let result;
+        if (id) {
+          result = await db.from('bookings').update(payload).eq('id', id);
+        } else {
+          result = await db.from('bookings').insert(payload);
         }
+        if (result.error) throw result.error;
+        await refreshBookings();
+      }
+      function showDatabaseError(error) {
+        const message = String(error?.message || '');
+        if (message.includes('BOOKING_CONFLICT') || message.includes('23P01')) return '이미 예약된 시간입니다. 다른 시간을 선택해 주세요.';
+        if (message.includes('OUTSIDE_OPERATING_HOURS')) return '운영 시간 외에는 예약할 수 없습니다.';
+        if (message.includes('CLOSED_DAY')) return '주말에는 예약할 수 없습니다.';
+        if (message.includes('PAST_DATE')) return '지난 날짜는 예약할 수 없습니다.';
+        return '서버와 통신하지 못했습니다. 잠시 후 다시 시도해 주세요.';
       }
       function setupClassAndPeopleOptions() {
         const classSelect = $('studentClass');
@@ -652,17 +650,12 @@
             pill.className = 'booking-pill';
             const person = document.createElement('div');
             person.className = 'booking-person';
-            const avatar = document.createElement('span');
-            avatar.className = 'person-avatar';
-            avatar.textContent = initials(item.name);
             const info = document.createElement('div');
             info.className = 'person-info';
             const strong = document.createElement('strong');
-            strong.textContent = `${item.name} · ${item.headcount || 1}명`;
-            const small = document.createElement('small');
-            small.textContent = item.studentClass || `${item.grade || 1}학년 ${item.classNo || 1}반`;
-            info.append(strong, small);
-            person.append(avatar, info);
+            strong.textContent = `예약 완료 · ${item.headcount || 1}명`;
+            info.append(strong);
+            person.append(info);
             const tag = document.createElement('span');
             tag.className = 'reserved-tag';
             tag.textContent = '예약 완료';
@@ -714,15 +707,14 @@
           list.append(card);
         });
       }
-      function deleteBooking(id) {
+      async function deleteBooking(id) {
         if (!adminLoggedIn) return showToast('관리자 로그인 후 삭제할 수 있습니다.');
         const item = readBookings().find(booking => booking.id === id);
         if (!item) return showToast('예약 정보를 찾을 수 없습니다.');
-        if (!window.confirm(`${item.name}님의 ${prettyDate(item.date)} ${timeLabel(item.start)}–${timeLabel(item.end)} 예약을 삭제할까요?`)) return;
-        const updated = readBookings().filter(booking => booking.id !== id);
-        if (!writeBookings(updated)) return;
-        renderAdminBookings();
-        renderSchedule();
+        if (!window.confirm(`${prettyDate(item.date)} ${timeLabel(item.start)}–${timeLabel(item.end)} 예약을 삭제할까요?`)) return;
+        const { error } = await db.from('bookings').delete().eq('id', id);
+        if (error) return showToast(showDatabaseError(error));
+        await refreshBookings();
         showToast('예약이 삭제되었습니다.');
       }
 
@@ -740,38 +732,53 @@
       $('scheduleDate').addEventListener('change', renderSchedule);
       $('adminFilterDate').addEventListener('change', renderAdminBookings);
       $('clearAdminFilter').addEventListener('click', () => { $('adminFilterDate').value = ''; renderAdminBookings(); });
-      $('adminLogoutButton').addEventListener('click', () => {
+      $('adminLogoutButton').addEventListener('click', async () => {
+        await db.auth.signOut();
         adminLoggedIn = false;
         $('adminPassword').value = '';
-        $('adminLoginCard').hidden = false;
-        $('adminPanel').hidden = true;
+        $('adminEmail').value = '';
+        bookingCache = [];
+        await refreshBookings();
+        showAdmin();
         showToast('관리자 로그아웃이 완료되었습니다.');
       });
-      $('adminLoginForm').addEventListener('submit', event => {
+      $('adminLoginForm').addEventListener('submit', async event => {
         event.preventDefault();
         const alert = $('adminLoginAlert');
         alert.textContent = '';
         alert.classList.remove('show');
-        if ($('adminPassword').value !== ADMIN_PASSWORD) {
-          alert.textContent = '비밀번호가 올바르지 않습니다.';
+        const { data, error } = await db.auth.signInWithPassword({
+          email: $('adminEmail').value.trim(),
+          password: $('adminPassword').value
+        });
+        if (error) {
+          alert.textContent = '이메일 또는 비밀번호를 확인해 주세요.';
+          alert.classList.add('show');
+          return;
+        }
+        const { data: admin, error: adminError } = await db
+          .from('booking_admins').select('user_id').eq('user_id', data.user.id).maybeSingle();
+        if (adminError || !admin) {
+          await db.auth.signOut();
+          alert.textContent = '관리자 권한이 등록된 계정이 아닙니다.';
           alert.classList.add('show');
           return;
         }
         adminLoggedIn = true;
         $('adminPassword').value = '';
+        await refreshBookings();
         showAdmin();
         showToast('관리자 로그인에 성공했습니다.');
       });
       modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
       document.addEventListener('keydown', event => { if (event.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
 
-      form.addEventListener('submit', event => {
+      form.addEventListener('submit', async event => {
         event.preventDefault();
         clearAlert();
         const name = $('studentName').value.trim();
         const grade = Number($('studentGrade').value);
         const classNo = Number($('studentClass').value);
-        const studentClass = `${grade}학년 ${classNo}반`;
         const headcount = Number($('headcount').value);
         const date = $('bookingDate').value;
         const start = Number($('startTime').value);
@@ -784,28 +791,29 @@
         if (!(headcount >= 1 && headcount <= 10 && Number.isInteger(headcount))) return showAlert('예약 인원은 1명부터 10명까지 선택할 수 있습니다.');
         if (date < today) return showAlert('지난 날짜는 예약할 수 없습니다.');
         if (!ALLOWED_DURATIONS.includes(duration)) return showAlert('이용 시간은 5분, 10분, 15분, 20분 중에서 선택해 주세요.');
-        if (!isWithinOperatingHours(start, end, date)) return showAlert('예약 가능 시간은 평일 아침 06:30~08:30, 점심 12:40~13:40, 방과 후(월·수·금 15:30부터 / 화·목 16:30부터)~17:30입니다. 이용 시간은 최대 20분입니다.');
+        if (!isWithinOperatingHours(start, end, date)) return showAlert('예약 가능 시간은 평일 아침 06:30~08:30, 점심 12:40~13:40, 방과 후~17:30입니다.');
         if (date === today) {
           const now = new Date();
           const nowMinute = now.getHours() * 60 + now.getMinutes();
-          if (start < nowMinute) return showAlert('이미 시작된 시간대는 예약할 수 없습니다. 다른 시간을 선택해 주세요.');
+          if (start < nowMinute) return showAlert('이미 시작된 시간대는 예약할 수 없습니다.');
         }
-        const bookings = readBookings();
-        if (hasConflict(bookings, date, start, end, editingBookingId)) return showAlert('선택한 시간에 이미 예약이 있습니다. 예약 현황을 확인하고 다른 시간을 선택해 주세요.');
-        let updated;
-        if (editingBookingId) {
-          updated = bookings.map(item => item.id === editingBookingId ? { ...item, name, grade, classNo, studentClass, headcount, date, start, end, purpose, updatedAt: new Date().toISOString() } : item);
-        } else {
-          updated = [...bookings, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, grade, classNo, studentClass, headcount, date, start, end, purpose, createdAt: new Date().toISOString() }];
+        const payload = {
+          name, grade, class_no: classNo, headcount, booking_date: date,
+          start_minute: start, end_minute: end, purpose
+        };
+        $('bookingSubmitButton').disabled = true;
+        try {
+          await writeBooking(payload, editingBookingId);
+          $('scheduleDate').value = date;
+          const wasEditing = Boolean(editingBookingId);
+          closeModal();
+          resetBookingForm();
+          showToast(wasEditing ? '예약 정보가 수정되었습니다.' : '예약이 완료되었습니다.');
+        } catch (error) {
+          showAlert(showDatabaseError(error));
+        } finally {
+          $('bookingSubmitButton').disabled = false;
         }
-        if (!writeBookings(updated)) return;
-        $('scheduleDate').value = date;
-        renderSchedule();
-        const wasEditing = Boolean(editingBookingId);
-        closeModal();
-        resetBookingForm();
-        if (adminLoggedIn) renderAdminBookings();
-        showToast(wasEditing ? '예약 정보가 수정되었습니다.' : `${name}님의 예약이 완료되었습니다.`);
       });
 
       setupClassAndPeopleOptions();
@@ -813,7 +821,29 @@
       $('bookingDate').min = localDateString();
       $('bookingDate').value = localDateString();
       setUpTimeOptions(undefined, undefined, $('bookingDate').value);
-      renderSchedule();
+      refreshBookings().catch(error => {
+        console.error(error);
+        showToast('예약 서버에 연결하지 못했습니다. 네트워크를 확인해 주세요.');
+      });
+      db.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          db.from('booking_admins').select('user_id').eq('user_id', data.session.user.id).maybeSingle()
+            .then(({ data: admin }) => {
+              adminLoggedIn = Boolean(admin);
+              refreshBookings().catch(console.error);
+              if (adminLoggedIn) showAdmin();
+              else db.auth.signOut();
+            });
+        }
+      });
+      scheduleChannel = db.channel('public-booking-schedule')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_schedule' }, () => {
+          refreshBookings().catch(console.error);
+        })
+        .subscribe();
+      window.addEventListener('pagehide', () => {
+        if (scheduleChannel) db.removeChannel(scheduleChannel);
+      });
     })();
   </script>
 </body>
