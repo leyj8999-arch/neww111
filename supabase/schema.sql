@@ -1,6 +1,10 @@
 -- 체력단련실 예약 공유 DB (Supabase SQL Editor에서 실행)
--- 학생 이름·학년·반·목적은 관리자만 조회할 수 있고,
--- 일반 방문자는 예약된 시간과 인원만 확인할 수 있습니다.
+-- 일반 이용자: 예약된 시간/인원만 조회, 예약 생성
+-- 관리자: 예약 상세 조회, 수정, 삭제
+-- 이름·학년·반·이용 목적은 공개 일정에 노출되지 않습니다.
+
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
 
 create table if not exists public.bookings (
   id uuid primary key default gen_random_uuid(),
@@ -22,61 +26,88 @@ create table if not exists public.bookings (
     check (end_minute between 5 and 1440)
 );
 
+-- 공개 시간표에는 개인정보를 복제하지 않습니다.
+create table if not exists public.booking_schedule (
+  id uuid primary key references public.bookings(id) on delete cascade,
+  booking_date date not null,
+  start_minute smallint not null,
+  end_minute smallint not null,
+  headcount smallint not null
+);
+
 create table if not exists public.booking_admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
 alter table public.bookings enable row level security;
+alter table public.booking_schedule enable row level security;
 alter table public.booking_admins enable row level security;
 
+-- 일반 이용자는 공개 요약 행만 읽을 수 있습니다.
+drop policy if exists "Anyone can read booking schedule" on public.booking_schedule;
+create policy "Anyone can read booking schedule"
+  on public.booking_schedule for select to anon, authenticated
+  using (true);
+
+-- 예약 등록은 허용하되, 시간/겹침/입력 검증은 DB 트리거가 수행합니다.
+drop policy if exists "Anyone can create a booking" on public.bookings;
+create policy "Anyone can create a booking"
+  on public.bookings for insert to anon, authenticated
+  with check (true);
+
+-- 관리자만 개인 정보가 포함된 예약을 읽고 수정/삭제할 수 있습니다.
 drop policy if exists "Admins can read bookings" on public.bookings;
 create policy "Admins can read bookings"
   on public.bookings for select to authenticated
   using (exists (
-    select 1 from public.booking_admins a where a.user_id = auth.uid()
+    select 1 from public.booking_admins a
+    where a.user_id = (select auth.uid())
   ));
 
 drop policy if exists "Admins can update bookings" on public.bookings;
 create policy "Admins can update bookings"
   on public.bookings for update to authenticated
   using (exists (
-    select 1 from public.booking_admins a where a.user_id = auth.uid()
+    select 1 from public.booking_admins a
+    where a.user_id = (select auth.uid())
   ))
   with check (exists (
-    select 1 from public.booking_admins a where a.user_id = auth.uid()
+    select 1 from public.booking_admins a
+    where a.user_id = (select auth.uid())
   ));
 
 drop policy if exists "Admins can delete bookings" on public.bookings;
 create policy "Admins can delete bookings"
   on public.bookings for delete to authenticated
   using (exists (
-    select 1 from public.booking_admins a where a.user_id = auth.uid()
+    select 1 from public.booking_admins a
+    where a.user_id = (select auth.uid())
   ));
 
 drop policy if exists "Admins can read own admin row" on public.booking_admins;
 create policy "Admins can read own admin row"
   on public.booking_admins for select to authenticated
-  using (user_id = auth.uid());
+  using (user_id = (select auth.uid()));
 
+-- 테이블 권한은 RLS와 함께 최소 범위로 제한합니다.
 revoke all on public.bookings from anon, authenticated;
+grant insert (name, grade, class_no, headcount, booking_date, start_minute, end_minute, purpose)
+  on public.bookings to anon, authenticated;
 grant select, update, delete on public.bookings to authenticated;
+
+revoke all on public.booking_schedule from anon, authenticated;
+grant select on public.booking_schedule to anon, authenticated;
+
 revoke all on public.booking_admins from anon, authenticated;
 grant select on public.booking_admins to authenticated;
 
--- 일반 이용자에게는 이름·학년·반·목적을 제외한 시간표만 공개합니다.
-drop view if exists public.booking_schedule;
-create view public.booking_schedule as
-select id, booking_date, start_minute, end_minute, headcount
-from public.bookings;
-grant select on public.booking_schedule to anon, authenticated;
-
--- 모든 신규 예약 및 관리자 수정 시 운영시간과 중복 예약을 DB에서 재검증합니다.
-create or replace function public.validate_booking()
+-- private 스키마의 보안 definer 트리거 함수만 요약 시간표를 갱신합니다.
+create or replace function private.validate_booking()
 returns trigger
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = pg_catalog, public, pg_temp
 as $$
 declare
   v_weekday integer;
@@ -106,7 +137,6 @@ begin
     raise exception 'OUTSIDE_OPERATING_HOURS' using errcode = '22023';
   end if;
 
-  -- 같은 날짜의 동시 예약 요청도 서로 겹치지 않도록 날짜별 잠금을 사용합니다.
   perform pg_advisory_xact_lock(hashtextextended(NEW.booking_date::text, 0));
 
   if exists (
@@ -125,58 +155,44 @@ begin
 end;
 $$;
 
-drop trigger if exists bookings_validate_before_write on public.bookings;
-create trigger bookings_validate_before_write
-before insert or update on public.bookings
-for each row execute function public.validate_booking();
-
--- 비로그인 이용자는 이 함수로만 예약을 등록할 수 있습니다.
-create or replace function public.create_booking(
-  p_name text,
-  p_grade integer,
-  p_class_no integer,
-  p_headcount integer,
-  p_booking_date date,
-  p_start_minute integer,
-  p_duration integer,
-  p_purpose text default ''
-)
-returns uuid
+create or replace function private.sync_booking_schedule()
+returns trigger
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = pg_catalog, public, pg_temp
 as $$
-declare
-  v_id uuid;
 begin
-  if p_name is null or char_length(trim(p_name)) not between 1 and 20 then
-    raise exception 'INVALID_NAME' using errcode = '22023';
-  end if;
-  if p_grade not between 1 and 3 or p_class_no not between 1 and 20 then
-    raise exception 'INVALID_CLASS' using errcode = '22023';
-  end if;
-  if p_headcount not between 1 and 10 then
-    raise exception 'INVALID_HEADCOUNT' using errcode = '22023';
-  end if;
-  if p_duration not in (5, 10, 15, 20) then
-    raise exception 'INVALID_DURATION' using errcode = '22023';
-  end if;
-  if char_length(coalesce(p_purpose, '')) > 120 then
-    raise exception 'PURPOSE_TOO_LONG' using errcode = '22023';
-  end if;
-
-  insert into public.bookings (
-    name, grade, class_no, headcount, booking_date,
-    start_minute, end_minute, purpose
-  ) values (
-    trim(p_name), p_grade, p_class_no, p_headcount, p_booking_date,
-    p_start_minute, p_start_minute + p_duration, coalesce(trim(p_purpose), '')
-  )
-  returning id into v_id;
-
-  return v_id;
+  insert into public.booking_schedule (id, booking_date, start_minute, end_minute, headcount)
+  values (NEW.id, NEW.booking_date, NEW.start_minute, NEW.end_minute, NEW.headcount)
+  on conflict (id) do update set
+    booking_date = excluded.booking_date,
+    start_minute = excluded.start_minute,
+    end_minute = excluded.end_minute,
+    headcount = excluded.headcount;
+  return NEW;
 end;
 $$;
 
-revoke all on function public.create_booking(text, integer, integer, integer, date, integer, integer, text) from public;
-grant execute on function public.create_booking(text, integer, integer, integer, date, integer, integer, text) to anon, authenticated;
+drop trigger if exists bookings_validate_before_write on public.bookings;
+create trigger bookings_validate_before_write
+before insert or update on public.bookings
+for each row execute function private.validate_booking();
+
+drop trigger if exists bookings_sync_schedule_after_write on public.bookings;
+create trigger bookings_sync_schedule_after_write
+after insert or update on public.bookings
+for each row execute function private.sync_booking_schedule();
+
+-- 실시간 동기화에서 사용할 공개 시간표 테이블을 Realtime publication에 추가합니다.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'booking_schedule'
+  ) then
+    alter publication supabase_realtime add table public.booking_schedule;
+  end if;
+end
+$$;
